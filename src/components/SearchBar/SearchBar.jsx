@@ -1,38 +1,42 @@
-import { useState } from "react";
-import { AiOutlineSearch } from "react-icons/ai";
-import { toast } from 'react-toastify';
-import css from './SearchBar.module.css';
+import './Searchbar.css';
+import { useState } from 'react';
+import PropTypes from 'prop-types';
 
-export const Searchbar = ({onSubmit}) => {
-    
-  const [searchQuery, setSearchQuery] = useState('');
+import Notiflix from 'notiflix';
 
-  const handleChangePicture = event => {
-    setSearchQuery(event.currentTarget.value.toLowerCase());
-  }
+import { ImSearch } from 'react-icons/im';
 
-  const handleSubmit = event => {
-    event.preventDefault();
+const Searchbar = ({ onSubmit }) => {
+  const [inputData, setInputData] = useState('');
 
-    if (searchQuery.trim() === '') {
-      return toast.warn('Enter a query');
-    }
+  const onChangeInput = e => {
+    setInputData(e.currentTarget.value.toLowerCase());
+  };
 
-    onSubmit(searchQuery);
-    setSearchQuery('');
-  }
+  const handleSubmit = e => {
+    e.preventDefault();
+
+    if (inputData.trim() === '') {
+      Notiflix.Notify.info('You cannot search by empty field, try again.');
+      return;
+    } 
+
+    onSubmit(inputData);
+    setInputData('');
+  };
 
   return (
-    <header className={css.searchbar}>
-      <form className={css.searchForm} onSubmit={handleSubmit}>
-        <button type="submit" className={css.searchFormButton}>
-          <span className={css.searchFormLabel}>Search</span>
-          <AiOutlineSearch />
+    <header className="Searchbar">
+      <form className="SearchForm" onSubmit={handleSubmit}>
+        <button type="submit" className="SearchForm-button">
+          <ImSearch size={25} />
         </button>
 
         <input
-          onChange={handleChangePicture}
-          className={css.searchFormInput}
+          className="SearchForm-input"
+          name="inputData"
+          value={inputData}
+          onChange={onChangeInput}
           type="text"
           autoComplete="off"
           autoFocus
@@ -40,5 +44,10 @@ export const Searchbar = ({onSubmit}) => {
         />
       </form>
     </header>
-  )
-}
+  );
+};
+
+export default Searchbar;
+Searchbar.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
+};

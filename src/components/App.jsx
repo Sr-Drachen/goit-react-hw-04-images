@@ -1,83 +1,96 @@
-import { useEffect, useState } from "react";
-import { ToastContainer, toast } from 'react-toastify';
-import "react-toastify/dist/ReactToastify.css";
-import { Searchbar } from "./SearchBar/SearchBar";
-import { fetchPhoto } from "service/picturesApi";
-import { ImageGallery } from "./ImageGallery/ImageGallery";
-import { Loader } from './Loader/Loader';
-import { Button } from "./Button/Button";
-import css from './App.module.css'
+import React, { useState, useEffect } from 'react';
+import Button from './Button';
+import ImageGallery from './ImageGallery';
+import './App.css';
+import { fetchImages } from './fetchImages/fetchImages';
+import Searchbar from './SearchBar/SearchBar';
+import Notiflix from 'notiflix';
+import Loader from './Loader';
 
-
-export const App = () => {
-
-  const [query, setQuery] = useState('');
-  const [images, setImages] = useState([]);
+const App = () => {
+  const [inputData, setInputData] = useState('');
+  const [items, setItems] = useState([]);
+  const [status, setStatus] = useState('idle');
+  const [totalHits, setTotalHits] = useState(0);
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isVissible, setIsVissible] = useState(false);
-  const [, setError] = useState(false);
 
+  useEffect(() => {
+    const fetchImagesData = async () => {
+      if (inputData.trim() === '') {
+        setStatus('idle');
+        return;
+      }
 
-useEffect(() => {
-  if (query === '') {
-    return;
-  }
-
-  const getPictures = async () => {
-  setIsLoading(true);
-
-  try {
-    const { hits, totalHits } = await fetchPhoto(query, page)
-    
-    if (hits.length === 0) {
-      setIsVissible(false)
-      return toast.error("Sorry, there are no images matching your search query. Please try again.");
+      try {
+        setStatus('pending');
+        const { totalHits, hits } = await fetchImages(inputData, page);
+        if (hits.length < 1) {
+          setStatus('rejected');
+          Notiflix.Notify.failure(
+            'Sorry, there are no images matching your search query. Please try again.'
+          );
+        } else {
+          setItems(prevItems => [...prevItems, ...hits]);
+          setTotalHits(totalHits);
+          setStatus('resolved');
+        }
+      } catch (error) {
+        setStatus('rejected');
+      }
     };
 
-    if (page > Math.ceil(totalHits / 12)) {
-      setIsVissible(false)
-      return toast.warn("We're sorry, but you've reached the end of search results.");
-    };
+    fetchImagesData();
+  }, [inputData, page]);
 
-    setImages(prevState => [...prevState, ...hits]);
-    setIsVissible(page < Math.ceil(totalHits / 12))
-
-  } catch (error) {
-    setError(error.message);
-    
-  }
-  finally {
-    setIsLoading(false)
-    }
-  }
-    
-  getPictures();
-    
-  }, [query, page])
-
-  
-
-  const handleFormSubmit = picture => {
-    setQuery(picture);
-    setImages([]);
+  const handleSubmit = inputData => {
+    setItems([]);
     setPage(1);
-    setError(false);
+    setInputData(inputData);
+  };
+
+  const onNextPage = async () => {
+    setPage(prevPage => prevPage + 1);
+  };
+
+  if (status === 'idle') {
+    return (
+      <div className="App">
+        <Searchbar onSubmit={handleSubmit} />
+      </div>
+    );
   }
 
-  const loadMoreButton = () => {
-    setPage(prevState => (prevState + 1))
+  if (status === 'pending') {
+    return (
+      <div className="App">
+        <Searchbar onSubmit={handleSubmit} />
+        <ImageGallery page={page} items={items} />
+        <Loader />
+        {totalHits > 12 && <Button onClick={onNextPage} />}
+      </div>
+    );
   }
 
-  return (
-    <div className={css.container}>                
-      <Searchbar onSubmit={handleFormSubmit} />
-      {isLoading && <Loader />}
-      <ImageGallery images={images} />
-      {isVissible && (<Button disabled={isLoading} onLoadMoreButton={loadMoreButton}>
-        {isLoading ? 'Loading...' : 'Load more'}
-      </Button>)}
-      <ToastContainer autoClose={3000}/>
-    </div>
-  );
+  if (status === 'rejected') {
+    return (
+      <div className="App">
+        <Searchbar onSubmit={handleSubmit} />
+        <p>Something went wrong. Please try again later.</p>
+      </div>
+    );
+  }
+
+  if (status === 'resolved') {
+    return (
+      <div className="App">
+        <Searchbar onSubmit={handleSubmit} />
+        <ImageGallery page={page} items={items} />
+        {totalHits > 12 && totalHits > items.length && (
+          <Button onClick={onNextPage} />
+        )}
+      </div>
+    );
+  }
 };
+
+export default App;
